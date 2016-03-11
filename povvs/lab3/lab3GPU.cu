@@ -1,21 +1,27 @@
 # include <stdio.h>
 # include <math.h>
 
-__global__ void Add( int n, float *A, float *B, float *C, float S1, float S2) {
+__global__ void Add( int n, float *A, float *B, float *C, float S1, float S2, int steps) {
 int idx = blockIdx.x * blockDim.x + threadIdx.x;
-if(idx < n)
- C[idx]=(powf(S1,3.0)- 3*B[idx])/(A[idx] + S2); //powf(S1,3.0)
+	if(idx < n){
+		for (int i = 0; i < steps; i++){
+			C[steps*idx+i]=(powf(S1,3.0)- 3*B[steps*idx+i])/(A[steps*idx+i] + S2); //powf(S1,3.0)
+		}
+	}
 }
 
 
 int main ( int argc, char * argv [] ) {
 
-	if (argc != 2) return 1;
+	if (argc != 4){
+		printf("To few args\n");
+		return 1;
+	}
 
 	int n = atoi(argv[1]);
 	printf("n = %d\n", n);
 
-	// int i, steps;
+	int steps;
 	float *hA, *hB, *hC;
 	// float hS1, hS2;
 	float *devA, *devB, *devC;
@@ -48,14 +54,14 @@ int main ( int argc, char * argv [] ) {
 
 
 	// blocks=4; blocksize=64;
-	// steps=(int)n/(blocks*blocksize);
-	// dim3 block(atoi(argv[3]));
-	// dim3 grid(atoi(argv[2]));
+	dim3 block(atoi(argv[3]));
+	dim3 grid(atoi(argv[2]));
+	steps=(int)n/(atoi(argv[3])*atoi(argv[2]));
 
-	dim3 block(512);
-	dim3 grid((n-1)/512 + 1);
+	// dim3 block(512);
+	// dim3 grid((n-1)/512 + 1);
 
-	printf("block = %d, grid = %d, threads = %d\n", block.x, grid.x, block.x*grid.x);
+	printf("block = %d, grid = %d, threads = %d, steps = %d\n", block.x, grid.x, block.x*grid.x, steps);
 
 
 
@@ -64,7 +70,7 @@ int main ( int argc, char * argv [] ) {
 	cudaMemcpy ( devB, hB, n*sizeof(float), cudaMemcpyHostToDevice);
 
 
-	Add<<<grid, block>>> ( n, devA, devB, devC, devS1, devS2);
+	Add<<<grid, block>>> ( n, devA, devB, devC, devS1, devS2, steps);
 
 	cudaMemcpy ( hC, devC, n*sizeof(float), cudaMemcpyDeviceToHost );
 
